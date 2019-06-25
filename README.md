@@ -22,3 +22,5 @@ dummy-dll-generator identifies the following information after importing the exi
 
 After analyzing the DLL, the dummy-dll-generator produces the out.dll in the working directory by using the MSBuild.
 No entry point is specified for the compilation.
+
+![Dummy DLL Generator Screenshot 1](https://raw.githubusercontent.com/ykhwong/dummy-dll-generator/master/resources/dummyDLL_sshot.png)
