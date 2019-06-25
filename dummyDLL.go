@@ -10,10 +10,11 @@ import (
 	"bufio"
 	"regexp"
 	"strconv"
+	"time"
+	"runtime"
 )
 
-var xmlData string = `
-<?xml version="1.0" encoding="utf-8"?>
+var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -97,11 +98,11 @@ var xmlData string = `
     <LinkIncremental>false</LinkIncremental>
     <EmbedManifest>false</EmbedManifest>
     <GenerateManifest>false</GenerateManifest>
-    <TargetName>ffmpeg</TargetName>
+    <TargetName>out</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
@@ -111,11 +112,12 @@ var xmlData string = `
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+	  <NoEntryPoint>true</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
@@ -125,11 +127,12 @@ var xmlData string = `
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+	  <NoEntryPoint>true</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -143,6 +146,7 @@ var xmlData string = `
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+	  <NoEntryPoint>true</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -204,28 +208,74 @@ var defineData string = `
 `
 var outData string = defineData
 
+func RemoveDir(dir string) error {
+    d, err := os.Open(dir)
+    if err != nil {
+        return err
+    }
+    defer d.Close()
+	err = os.RemoveAll(dir)
+	if err != nil {
+		return err
+	}
+    return nil
+}
+
+func createFile(name string, data string) {
+	f, _ := os.Create(name)
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	n4, _ := w.WriteString(data)
+	if n4 == 0 {
+		fmt.Println("Error: Please check if you have a permission to the temporary directory(1)")
+		os.Exit(1)
+	}
+	w.Flush()
+}
+
+func checkStatName(name string) {
+	if _, err := os.Stat(name); os.IsNotExist(err) {
+		fmt.Println("Error: File not found - " + os.Args[1])
+		os.Exit(1)
+	}
+}
+
+func errChk(err error) {
+    if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+    }
+}
+
 func main() {
 	var PF86 string = os.Getenv("ProgramFiles(x86)")
 	var PF string = os.Getenv("ProgramFiles")
-	//var tempDir string = os.Getenv("TEMP")
+	var tmpDir string = os.Getenv("TEMP") + "\\dummydll\\" + time.Now().Format("20060102150405")
+	var origInstallPath string = ""
 	var realPF string = ""
 	var cmd string = ""
 	var finalVer string = ""
 	var newStr string = ""
+	var homeDir string = ""
 	var isSystemX86 bool = false
 	var isDllX86 bool = false
 	var cArray []string
 	var cppArray []string
 
-	if !(len(os.Args) > 1) {
-		fmt.Println(filepath.Base(os.Args[0]) + " [filename]")
+	if runtime.GOOS != "windows" {
+		fmt.Println("This program requires Microsoft Windows")
 		os.Exit(1)
 	}
 
-	if _, err := os.Stat(os.Args[1]); os.IsNotExist(err) {
-		fmt.Println("Error: File not found - " + os.Args[1])
+	homeDir, err := os.Getwd(); errChk(err)
+
+	if !(len(os.Args) > 1) {
+		fmt.Println("Dummy DLL Generator v0.1 (20190625a)\n")
+		fmt.Println("Usage: " + filepath.Base(os.Args[0]) + " [DLL path]")
 		os.Exit(1)
 	}
+
+	checkStatName(os.Args[1])
 	if !(strings.Compare(PF86, "") == 0) {
 		realPF = PF86
 	} else if !(strings.Compare(PF, "") == 0) {
@@ -244,17 +294,20 @@ func main() {
 
 	cmdLine := exec.Command(cmd, "-latest", "-property", "installationPath")
 	cmdOut, _ := cmdLine.StdoutPipe()
-	err := cmdLine.Start()
+	err = cmdLine.Start()
 	if err != nil {
 		fmt.Println("Error: Could not run vswhere")
 		os.Exit(1)
 	}
 	cmdBytes, _ := ioutil.ReadAll(cmdOut)
-	newStr = strings.TrimSpace(string(cmdBytes)) + "\\VC\\Tools\\MSVC"
-	
+	newStr = strings.TrimSpace(string(cmdBytes))
+	origInstallPath = newStr
+	newStr += "\\VC\\Tools\\MSVC"
+
 	fileInfo, err := ioutil.ReadDir(newStr)
     if err != nil {
-		//return
+		fmt.Println("Error: Could not run vswhere")
+		os.Exit(1)
     }
     for _, file := range fileInfo {
 		if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
@@ -268,10 +321,7 @@ func main() {
 		newStr += "\\Hostx64"
 	}
 	cmd = newStr + "\\x86\\dumpbin.exe"
-	if _, err := os.Stat(cmd); os.IsNotExist(err) {
-		fmt.Println("Error: Could not find " + cmd)
-		os.Exit(1)
-	}
+	checkStatName(cmd)
 	cmdLine = exec.Command(cmd, "/EXPORTS", "/HEADERS", os.Args[1])
 	cmdOut, _ = cmdLine.StdoutPipe()
 	err = cmdLine.Start()
@@ -369,5 +419,33 @@ func main() {
 			outData += "CPPFUNC(" + sstr + " { return (" + dataType + ")0; })\n"
 		}
 	}
-	fmt.Println(outData)
+	os.MkdirAll(tmpDir, os.ModePerm)
+	createFile(tmpDir + "\\dllmain.cpp", outData)
+	createFile(tmpDir + "\\dllmain.xml", xmlData)
+	fmt.Println(tmpDir)
+
+	if isDllX86 {
+		cmd = origInstallPath + "\\MSBuild\\Current\\Bin\\MSBuild.exe"
+	} else {
+		cmd = origInstallPath + "\\MSBuild\\Current\\Bin\\amd64\\MSBuild.exe"
+	}
+	checkStatName(cmd)
+	if isDllX86 {
+		fmt.Println(cmd + " " + tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x86;OutDir=" + homeDir)
+		cmdLine = exec.Command(cmd, tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x86;OutDir=" + homeDir)
+	} else {
+		fmt.Println(cmd + " " + tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x64;OutDir=" + homeDir)
+		cmdLine = exec.Command(cmd, tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x64;OutDir=" + homeDir)
+	}
+	cmdOut, _ = cmdLine.StdoutPipe()
+	err = cmdLine.Start()
+	if err != nil {
+		fmt.Println("Error: Could not run msbuild")
+		os.Exit(1)
+	}
+	cmdBytes, _ = ioutil.ReadAll(cmdOut)
+	newStr = strings.TrimSpace(string(cmdBytes))
+	fmt.Println(newStr)
+
+	RemoveDir(tmpDir)
 }
