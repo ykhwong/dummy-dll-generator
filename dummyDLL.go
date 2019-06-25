@@ -363,7 +363,7 @@ func main() {
 			re := regexp.MustCompile(`\s+`)
 			if len(re.Split(newLn, -1)) == 4 {
 				newLn2 := re.Split(newLn, -1)[3]
-				matched, _ = regexp.MatchString(`^\?`, newLn2)
+				matched, _ = regexp.MatchString(`(^\?|@)`, newLn2)
 				if matched {
 					cmd = newStr + "\\x86\\undname.exe"
 					cmdLine := exec.Command(cmd, newLn2)
