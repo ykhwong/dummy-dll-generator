@@ -269,7 +269,7 @@ func main() {
 
 	homeDir, err := os.Getwd(); errChk(err)
 
-	if !(len(os.Args) == 1) {
+	if !(len(os.Args) == 2) {
 		fmt.Println("Dummy DLL Generator v0.1 (20190625a)\n")
 		fmt.Println("Usage: " + filepath.Base(os.Args[0]) + " [DLL path]")
 		os.Exit(1)
