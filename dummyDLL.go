@@ -202,7 +202,7 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
 </Project>
 `
 
-var verInfo string = "20190625b";
+var verInfo string = "v0.1 (20190625b)";
 var defineData string = `
 #define CFUNC(func, ...) __declspec(dllexport) void func(__VA_ARGS__) { return; }
 #define CPPFUNC(...) __declspec(dllexport) __VA_ARGS__
@@ -271,7 +271,7 @@ func main() {
 
 	homeDir, err := os.Getwd(); errChk(err)
 
-	fmt.Println("\nDummy DLL Generator v0.1 (" + verInfo + ")")
+	fmt.Println("\nDummy DLL Generator " + verInfo)
 	fmt.Println("========================================================================================")
 	if !(len(os.Args) == 2) {
 		fmt.Println("Usage: " + filepath.Base(os.Args[0]) + " [DLL path]")
