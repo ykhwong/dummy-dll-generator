@@ -235,7 +235,7 @@ func createFile(name string, data string) {
 
 func checkStatName(name string) {
 	if _, err := os.Stat(name); os.IsNotExist(err) {
-		fmt.Println("Error: File not found - " + os.Args[1])
+		fmt.Println("Error: File not found - " + name)
 		os.Exit(1)
 	}
 }
@@ -269,7 +269,7 @@ func main() {
 
 	homeDir, err := os.Getwd(); errChk(err)
 
-	if !(len(os.Args) > 1) {
+	if !(len(os.Args) == 1) {
 		fmt.Println("Dummy DLL Generator v0.1 (20190625a)\n")
 		fmt.Println("Usage: " + filepath.Base(os.Args[0]) + " [DLL path]")
 		os.Exit(1)
