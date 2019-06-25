@@ -111,7 +111,7 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
 	  <NoEntryPoint>true</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
@@ -126,7 +126,7 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
 	  <NoEntryPoint>true</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
@@ -134,9 +134,9 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;DUMMYDLL_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
@@ -145,14 +145,14 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
 	  <NoEntryPoint>true</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+	  <WarningLevel>Level3</WarningLevel>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
@@ -202,6 +202,7 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
 </Project>
 `
 
+var verInfo string = "20190625b";
 var defineData string = `
 #define CFUNC(func, ...) __declspec(dllexport) void func(__VA_ARGS__) { return; }
 #define CPPFUNC(...) __declspec(dllexport) __VA_ARGS__
@@ -227,24 +228,26 @@ func createFile(name string, data string) {
 	w := bufio.NewWriter(f)
 	n4, _ := w.WriteString(data)
 	if n4 == 0 {
-		fmt.Println("Error: Please check if you have a permission to the temporary directory(1)")
-		os.Exit(1)
+		exitWithMsg("Error: Please check if you have a permission to the temporary directory", 1)
 	}
 	w.Flush()
 }
 
 func checkStatName(name string) {
 	if _, err := os.Stat(name); os.IsNotExist(err) {
-		fmt.Println("Error: File not found - " + name)
-		os.Exit(1)
+		exitWithMsg("Error: File not found - " + name, 1)
 	}
 }
 
 func errChk(err error) {
     if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		exitWithMsg(err.Error(), 1)
     }
+}
+
+func exitWithMsg(msg string, code int) {
+	fmt.Println(msg)
+	os.Exit(code)
 }
 
 func main() {
@@ -263,14 +266,14 @@ func main() {
 	var cppArray []string
 
 	if runtime.GOOS != "windows" {
-		fmt.Println("This program requires Microsoft Windows")
-		os.Exit(1)
+		exitWithMsg("This program requires Microsoft Windows", 1)
 	}
 
 	homeDir, err := os.Getwd(); errChk(err)
 
+	fmt.Println("\nDummy DLL Generator v0.1 (" + verInfo + ")")
+	fmt.Println("========================================================================================")
 	if !(len(os.Args) == 2) {
-		fmt.Println("Dummy DLL Generator v0.1 (20190625a)\n")
 		fmt.Println("Usage: " + filepath.Base(os.Args[0]) + " [DLL path]")
 		os.Exit(1)
 	}
@@ -282,22 +285,19 @@ func main() {
 		realPF = PF
 		isSystemX86 = true
 	} else {
-		fmt.Println("Error: ProgramFiles environment is not set")
-		os.Exit(1)
+		exitWithMsg("Error: ProgramFiles environment is not set", 1)
 	}
 
 	cmd = realPF + "\\Microsoft Visual Studio\\Installer\\vswhere.exe"
 	if _, err := os.Stat(cmd); os.IsNotExist(err) {
-		fmt.Println("Error: Visual Studio 15.2 (26418.1 Preview) or higher must be installed")
-		os.Exit(1)
+		exitWithMsg("Error: Visual Studio 15.2 (26418.1 Preview) or higher must be installed", 1)
 	}
 
 	cmdLine := exec.Command(cmd, "-latest", "-property", "installationPath")
 	cmdOut, _ := cmdLine.StdoutPipe()
 	err = cmdLine.Start()
 	if err != nil {
-		fmt.Println("Error: Could not run vswhere")
-		os.Exit(1)
+		exitWithMsg("Error: Could not run vswhere", 1)
 	}
 	cmdBytes, _ := ioutil.ReadAll(cmdOut)
 	newStr = strings.TrimSpace(string(cmdBytes))
@@ -306,8 +306,7 @@ func main() {
 
 	fileInfo, err := ioutil.ReadDir(newStr)
     if err != nil {
-		fmt.Println("Error: Could not run vswhere")
-		os.Exit(1)
+		exitWithMsg("Error: Could not ReadDir", 1)
     }
     for _, file := range fileInfo {
 		if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
@@ -326,8 +325,7 @@ func main() {
 	cmdOut, _ = cmdLine.StdoutPipe()
 	err = cmdLine.Start()
 	if err != nil {
-		fmt.Println("Error: Could not run " + cmd)
-		os.Exit(1)
+		exitWithMsg("Error: Could not run " + cmd, 1)
 	}
 	cmdBytes, _ = ioutil.ReadAll(cmdOut)
 
@@ -355,7 +353,7 @@ func main() {
 			}
 		}
 		if level == 2 {
-			matched, _ = regexp.MatchString(`^\s*Summary\s*$`, scanner.Text())
+			matched, _ = regexp.MatchString(`^\s*(Summary|SECTION HEADER.*)\s*$`, scanner.Text())
 			if matched {
 				break
 			}
@@ -365,18 +363,17 @@ func main() {
 				newLn2 := re.Split(newLn, -1)[3]
 				matched, _ = regexp.MatchString(`(^\?|@)`, newLn2)
 				if matched {
+					var newCmdByte3 string = "";
 					cmd = newStr + "\\x86\\undname.exe"
 					cmdLine := exec.Command(cmd, newLn2)
 					cmdOut, _ := cmdLine.StdoutPipe()
 					err := cmdLine.Start()
 					if err != nil {
-						fmt.Println("Error: Could not run undname")
-						os.Exit(1)
+						exitWithMsg("Error: Could not run undname", 1)
 					}
 					cmdBytes2, _ := ioutil.ReadAll(cmdOut)
 					re = regexp.MustCompile(`(?s).*is :- `)
 					cmdByte3 := re.ReplaceAllString(strings.TrimSpace(string(cmdBytes2)), "")
-					var newCmdByte3 string = "";
 					for num, sstr := range strings.Split(cmdByte3, ",") {
 						num++
 						matched, _ = regexp.MatchString(`\)"$`, sstr)
@@ -395,13 +392,17 @@ func main() {
 		}
 	}
 
-	fmt.Println("DLL Name: " + os.Args[1])
+	fmt.Println("Input DLL: " + os.Args[1])
+	fmt.Println("Output DLL: out.dll")
+	fmt.Printf("No. of symbols: C (" + strconv.FormatInt(int64(len(cArray)), 10) + "),")
+	fmt.Println(" C++ (" + strconv.FormatInt(int64(len(cppArray)), 10) + ")")
 	if isDllX86 {
 		fmt.Println("DLL Bit: x86")
 	} else {
 		fmt.Println("DLL Bit: x64")
 	}
-	
+	fmt.Println("\nBuilding...")
+
 	// cArray
 	outData += `extern "C" {` + "\n"
 	for _, sstr := range cArray {
@@ -422,7 +423,6 @@ func main() {
 	os.MkdirAll(tmpDir, os.ModePerm)
 	createFile(tmpDir + "\\dllmain.cpp", outData)
 	createFile(tmpDir + "\\dllmain.xml", xmlData)
-	fmt.Println(tmpDir)
 
 	if isDllX86 {
 		cmd = origInstallPath + "\\MSBuild\\Current\\Bin\\MSBuild.exe"
@@ -430,22 +430,28 @@ func main() {
 		cmd = origInstallPath + "\\MSBuild\\Current\\Bin\\amd64\\MSBuild.exe"
 	}
 	checkStatName(cmd)
+
+	platform := "Platform="
 	if isDllX86 {
-		fmt.Println(cmd + " " + tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x86;OutDir=" + homeDir)
-		cmdLine = exec.Command(cmd, tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x86;OutDir=" + homeDir)
+		platform += "x86"
 	} else {
-		fmt.Println(cmd + " " + tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x64;OutDir=" + homeDir)
-		cmdLine = exec.Command(cmd, tmpDir + "\\dllmain.xml", "/property:Configuration=Release;Platform=x64;OutDir=" + homeDir)
+		platform += "x64"
 	}
+	cmdLine = exec.Command(cmd, tmpDir + "\\dllmain.xml",
+		"/property:Configuration=Release;" + platform + ";OutDir=" + homeDir + "\\",
+		"/clp:NoSummary;NoItemAndPropertyList;ErrorsOnly", "/verbosity:quiet", "/nologo")
 	cmdOut, _ = cmdLine.StdoutPipe()
 	err = cmdLine.Start()
 	if err != nil {
-		fmt.Println("Error: Could not run msbuild")
-		os.Exit(1)
+		exitWithMsg("Error: Could not run MSBuild", 1)
 	}
 	cmdBytes, _ = ioutil.ReadAll(cmdOut)
 	newStr = strings.TrimSpace(string(cmdBytes))
-	fmt.Println(newStr)
+	if (newStr == "") {
+		fmt.Println("Done")
+	} else {
+		fmt.Println(newStr)
+	}
 
 	RemoveDir(tmpDir)
 }
