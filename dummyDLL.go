@@ -1,20 +1,20 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"strings"
-	"os/exec"
-	"io/ioutil"
-	"path/filepath"
 	"bufio"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
-	"strconv"
-	"time"
 	"runtime"
+	"strconv"
+	"strings"
+	"time"
 )
 
-var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
+var xmlData = `<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -202,14 +202,15 @@ var xmlData string = `<?xml version="1.0" encoding="utf-8"?>
 </Project>
 `
 
-var verInfo string = "v0.1 (20190625b)";
-var defineData string = `
+const verInfo string = "v0.1 (20190627a)"
+const defineData string = `
 #define CFUNC(func, ...) __declspec(dllexport) void func(__VA_ARGS__) { return; }
 #define CPPFUNC(...) __declspec(dllexport) __VA_ARGS__
 `
-var outData string = defineData
 
-func RemoveDir(dir string) error {
+var outData = defineData
+
+func removeDir(dir string) error {
     d, err := os.Open(dir)
     if err != nil {
         return err
@@ -245,25 +246,40 @@ func errChk(err error) {
     }
 }
 
+func SliceUniqMap(s []string) []string {
+	seen := make(map[string]struct{}, len(s))
+	j := 0
+	for _, v := range s {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		s[j] = v
+		j++
+	}
+	return s[:j]
+}
+
 func exitWithMsg(msg string, code int) {
 	fmt.Println(msg)
 	os.Exit(code)
 }
 
 func main() {
-	var PF86 string = os.Getenv("ProgramFiles(x86)")
-	var PF string = os.Getenv("ProgramFiles")
-	var tmpDir string = os.Getenv("TEMP") + "\\dummydll\\" + time.Now().Format("20060102150405")
-	var origInstallPath string = ""
-	var realPF string = ""
-	var cmd string = ""
-	var finalVer string = ""
-	var newStr string = ""
-	var homeDir string = ""
-	var isSystemX86 bool = false
-	var isDllX86 bool = false
+	var PF86 = os.Getenv("ProgramFiles(x86)")
+	var PF = os.Getenv("ProgramFiles")
+	var tmpDir = os.Getenv("TEMP") + `\dummydll\` + time.Now().Format("20060102150405")
+	var origInstallPath = ""
+	var realPF = ""
+	var cmd = ""
+	var finalVer = ""
+	var newStr = ""
+	var homeDir = ""
+	var isSystemX86 = false
+	var isDllX86 = false
 	var cArray []string
 	var cppArray []string
+	var cppStructCases []string
 
 	if runtime.GOOS != "windows" {
 		exitWithMsg("This program requires Microsoft Windows", 1)
@@ -362,9 +378,12 @@ func main() {
 			if len(re.Split(newLn, -1)) == 4 {
 				newLn2 := re.Split(newLn, -1)[3]
 				matched, _ = regexp.MatchString(`(^\?|@)`, newLn2)
+
 				if matched {
-					var newCmdByte3 string = "";
-					cmd = newStr + "\\x86\\undname.exe"
+					// C++ symbols
+					var newCmdByte3 = "";
+					//var newCmdByte4 string = "";
+					cmd = newStr + `\x86\undname.exe`
 					cmdLine := exec.Command(cmd, newLn2)
 					cmdOut, _ := cmdLine.StdoutPipe()
 					err := cmdLine.Start()
@@ -374,22 +393,55 @@ func main() {
 					cmdBytes2, _ := ioutil.ReadAll(cmdOut)
 					re = regexp.MustCompile(`(?s).*is :- `)
 					cmdByte3 := re.ReplaceAllString(strings.TrimSpace(string(cmdBytes2)), "")
-					for num, sstr := range strings.Split(cmdByte3, ",") {
+
+					re = regexp.MustCompile(`(\(|,)(struct) (\S+)`)
+					matches := re.FindAllStringSubmatch(cmdByte3, -1)
+					for _, v := range matches {
+						var v2 = v[2]
+						var v3 = v[3]
+						re = regexp.MustCompile(`(,|\)).*`)
+						v3 = re.ReplaceAllString(v3, "")
+						if v2 == "struct" {
+							cppStructCases = append(cppStructCases, v3)
+						}
+					}
+
+					for num, sstr := range regexp.MustCompile(`,`).Split(cmdByte3, -1) {
 						num++
 						matched, _ = regexp.MatchString(`\)"$`, sstr)
 						if matched {
-							sstr = strings.Replace(sstr, `)"`, "", -1)
-							newCmdByte3 = newCmdByte3 + sstr + " data" + strconv.FormatInt(int64(num), 10) + ")"
+							re = regexp.MustCompile(`\)\)"$`)
+							matched, _ = regexp.MatchString(`\)`, sstr)
+							if matched {
+								newCmdByte3 = newCmdByte3 + sstr
+							} else {
+								sstr = strings.Replace(sstr, `)"`, "", -1)
+								newCmdByte3 = newCmdByte3 + sstr + " data" + strconv.FormatInt(int64(num), 10) + ")"
+								newCmdByte3 += `"`
+							}
 						} else {
-							newCmdByte3 = newCmdByte3 + sstr + " data" + strconv.FormatInt(int64(num), 10) + ","
+							matched, _ = regexp.MatchString(`\)$`, sstr)
+							if matched {
+								re = regexp.MustCompile(`\)\s*$`)
+								sstr = re.ReplaceAllString(sstr, "")
+								newCmdByte3 = newCmdByte3 + sstr + " data" + strconv.FormatInt(int64(num), 10) + "),"
+							} else {
+								newCmdByte3 = newCmdByte3 + sstr + " data" + strconv.FormatInt(int64(num), 10) + ","
+							}
 						}
 					}
 					cppArray = append(cppArray, strings.Replace(newCmdByte3, `"`, "", -1))
 				} else {
+					// C symbols
 					cArray = append(cArray, newLn2)
 				}
 			}
 		}
+	}
+
+	cppStructCases = SliceUniqMap(cppStructCases)
+	for _, sstr := range cppStructCases {
+		outData += "typedef struct " + sstr + " {} " + sstr + ";\n"
 	}
 
 	fmt.Println("Input DLL: " + os.Args[1])
@@ -413,7 +465,7 @@ func main() {
 	// cppArray
 	for _, sstr := range cppArray {
 		re := regexp.MustCompile(`^(\S+ \*|\S+)\s.*`)
-		var dataType string = re.ReplaceAllString(sstr, "$1")
+		var dataType = re.ReplaceAllString(sstr, "$1")
 		if dataType == "void" {
 			outData += "CPPFUNC(" + sstr + " { return; })\n"
 		} else {
@@ -447,11 +499,11 @@ func main() {
 	}
 	cmdBytes, _ = ioutil.ReadAll(cmdOut)
 	newStr = strings.TrimSpace(string(cmdBytes))
-	if (newStr == "") {
+	if newStr == "" {
 		fmt.Println("Done")
 	} else {
 		fmt.Println(newStr)
 	}
 
-	RemoveDir(tmpDir)
+	removeDir(tmpDir)
 }
