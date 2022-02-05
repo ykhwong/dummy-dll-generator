@@ -6,7 +6,8 @@ This tool can handle both C and C++ convention symbols.
 
 ## Getting started
 ### Prerequisites
-* Visual Studio 15.2 (26418.1 Preview) or higher
+* Version (20220205a) : Visual Studio 2022
+* Version (20190627a) : Visual Studio 2017 and 2019
 
 ### Command Line Options
 
