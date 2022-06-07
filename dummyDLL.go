@@ -321,14 +321,30 @@ func main() {
 	newStr += "\\VC\\Tools\\MSVC"
 
 	fileInfo, err := ioutil.ReadDir(newStr)
+
 	if err != nil {
-		    exitWithMsg("Error: Could not find " + newStr, 1)
-    	}
-    	for _, file := range fileInfo {
-			if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
-				finalVer = file.Name()
-	        }
-    	}
+		cmdLine = exec.Command(cmd, "-prerelease", "-property", "installationPath")
+		cmdOut, _ = cmdLine.StdoutPipe()
+		err = cmdLine.Start()
+		if err != nil {
+			exitWithMsg("Error: Could not run vswhere", 1)
+		}
+	cmdBytes, _ = ioutil.ReadAll(cmdOut)
+	newStr = strings.TrimSpace(string(cmdBytes))
+	origInstallPath = newStr
+	newStr += "\\VC\\Tools\\MSVC"
+
+	fileInfo, err = ioutil.ReadDir(newStr)
+	if err != nil {
+	    exitWithMsg("Error: Could not read directory: " + newStr, 1)
+    }
+
+	}
+    for _, file := range fileInfo {
+		if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
+			finalVer = file.Name()
+        }
+    }
 	newStr = newStr + "\\" + finalVer + "\\bin"
 	if isSystemX86 {
 		newStr += "\\Hostx86"
