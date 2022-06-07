@@ -321,14 +321,14 @@ func main() {
 	newStr += "\\VC\\Tools\\MSVC"
 
 	fileInfo, err := ioutil.ReadDir(newStr)
-    if err != nil {
-		exitWithMsg("Error: Could not ReadDir", 1)
-    }
-    for _, file := range fileInfo {
-		if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
-			finalVer = file.Name()
-        }
-    }
+	if err != nil {
+		    exitWithMsg("Error: Could not find " + newStr, 1)
+    	}
+    	for _, file := range fileInfo {
+			if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
+				finalVer = file.Name()
+	        }
+    	}
 	newStr = newStr + "\\" + finalVer + "\\bin"
 	if isSystemX86 {
 		newStr += "\\Hostx86"
