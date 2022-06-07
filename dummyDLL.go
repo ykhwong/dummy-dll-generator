@@ -194,7 +194,7 @@ var xmlData = `<?xml version="1.0" encoding="utf-8"?>
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="out.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
@@ -473,8 +473,8 @@ func main() {
 		}
 	}
 	os.MkdirAll(tmpDir, os.ModePerm)
-	createFile(tmpDir + "\\dllmain.cpp", outData)
-	createFile(tmpDir + "\\dllmain.xml", xmlData)
+	createFile(tmpDir + "\\out.cpp", outData)
+	createFile(tmpDir + "\\out.xml", xmlData)
 
 	if isDllX86 {
 		cmd = origInstallPath + "\\MSBuild\\Current\\Bin\\MSBuild.exe"
@@ -489,7 +489,7 @@ func main() {
 	} else {
 		platform += "x64"
 	}
-	cmdLine = exec.Command(cmd, tmpDir + "\\dllmain.xml",
+	cmdLine = exec.Command(cmd, tmpDir + "\\out.xml",
 		"/property:Configuration=Release;" + platform + ";OutDir=" + homeDir + "\\",
 		"/clp:NoSummary;NoItemAndPropertyList;ErrorsOnly", "/verbosity:quiet", "/nologo")
 	cmdOut, _ = cmdLine.StdoutPipe()
