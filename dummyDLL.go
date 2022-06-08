@@ -211,16 +211,16 @@ const defineData string = `
 var outData = defineData
 
 func removeDir(dir string) error {
-    d, err := os.Open(dir)
-    if err != nil {
-        return err
-    }
-    defer d.Close()
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
 	err = os.RemoveAll(dir)
 	if err != nil {
 		return err
 	}
-    return nil
+	return nil
 }
 
 func createFile(name string, data string) {
@@ -236,14 +236,14 @@ func createFile(name string, data string) {
 
 func checkStatName(name string) {
 	if _, err := os.Stat(name); os.IsNotExist(err) {
-		exitWithMsg("Error: File not found - " + name, 1)
+		exitWithMsg("Error: File not found - "+name, 1)
 	}
 }
 
 func errChk(err error) {
-    if err != nil {
+	if err != nil {
 		exitWithMsg(err.Error(), 1)
-    }
+	}
 }
 
 func SliceUniqMap(s []string) []string {
@@ -285,7 +285,8 @@ func main() {
 		exitWithMsg("This program requires Microsoft Windows", 1)
 	}
 
-	homeDir, err := os.Getwd(); errChk(err)
+	homeDir, err := os.Getwd()
+	errChk(err)
 
 	fmt.Println("\nDummy DLL Generator " + verInfo)
 	fmt.Println("========================================================================================")
@@ -329,22 +330,22 @@ func main() {
 		if err != nil {
 			exitWithMsg("Error: Could not run vswhere", 1)
 		}
-	cmdBytes, _ = ioutil.ReadAll(cmdOut)
-	newStr = strings.TrimSpace(string(cmdBytes))
-	origInstallPath = newStr
-	newStr += "\\VC\\Tools\\MSVC"
+		cmdBytes, _ = ioutil.ReadAll(cmdOut)
+		newStr = strings.TrimSpace(string(cmdBytes))
+		origInstallPath = newStr
+		newStr += "\\VC\\Tools\\MSVC"
 
-	fileInfo, err = ioutil.ReadDir(newStr)
-	if err != nil {
-	    exitWithMsg("Error: Could not read directory: " + newStr, 1)
-    }
+		fileInfo, err = ioutil.ReadDir(newStr)
+		if err != nil {
+			exitWithMsg("Error: Could not read directory: "+newStr, 1)
+		}
 
 	}
-    for _, file := range fileInfo {
+	for _, file := range fileInfo {
 		if info, err := os.Stat(newStr + "\\" + file.Name()); err == nil && info.IsDir() {
 			finalVer = file.Name()
-        }
-    }
+		}
+	}
 	newStr = newStr + "\\" + finalVer + "\\bin"
 	if isSystemX86 {
 		newStr += "\\Hostx86"
@@ -357,7 +358,7 @@ func main() {
 	cmdOut, _ = cmdLine.StdoutPipe()
 	err = cmdLine.Start()
 	if err != nil {
-		exitWithMsg("Error: Could not run " + cmd, 1)
+		exitWithMsg("Error: Could not run "+cmd, 1)
 	}
 	cmdBytes, _ = ioutil.ReadAll(cmdOut)
 
@@ -397,7 +398,7 @@ func main() {
 
 				if matched {
 					// C++ symbols
-					var newCmdByte3 = "";
+					var newCmdByte3 = ""
 					//var newCmdByte4 string = "";
 					cmd = newStr + `\x86\undname.exe`
 					cmdLine := exec.Command(cmd, newLn2)
@@ -489,8 +490,8 @@ func main() {
 		}
 	}
 	os.MkdirAll(tmpDir, os.ModePerm)
-	createFile(tmpDir + "\\out.cpp", outData)
-	createFile(tmpDir + "\\out.xml", xmlData)
+	createFile(tmpDir+"\\out.cpp", outData)
+	createFile(tmpDir+"\\out.xml", xmlData)
 
 	if isDllX86 {
 		cmd = origInstallPath + "\\MSBuild\\Current\\Bin\\MSBuild.exe"
@@ -505,8 +506,8 @@ func main() {
 	} else {
 		platform += "x64"
 	}
-	cmdLine = exec.Command(cmd, tmpDir + "\\out.xml",
-		"/property:Configuration=Release;" + platform + ";OutDir=" + homeDir + "\\",
+	cmdLine = exec.Command(cmd, tmpDir+"\\out.xml",
+		"/property:Configuration=Release;"+platform+";OutDir="+homeDir+"\\",
 		"/clp:NoSummary;NoItemAndPropertyList;ErrorsOnly", "/verbosity:quiet", "/nologo")
 	cmdOut, _ = cmdLine.StdoutPipe()
 	err = cmdLine.Start()
