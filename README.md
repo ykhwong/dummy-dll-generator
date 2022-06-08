@@ -1,13 +1,14 @@
 # Dummy DLL Generator
 
-## INTRODUCTION
-Based on the existing DLL file, dummy-dll-generator generates a dummy DLL file.
+## About
+The Dummy DLL Generator generates a dummy DLL file by analyzing a DLL file. The DLL stands for Dynamic-link library, as implemented in Microsoft Windows.
 This tool can handle both C and C++ convention symbols.
 
 ## Getting started
 ### Prerequisites
-* Version (20220205a) : Visual Studio 2022
-* Version (20190627a) : Visual Studio 2017 and 2019
+* Version v0.2 : Visual Studio 2017 15.2 (26418.1 Preview) or higher
+* Version v0.1 (20220205a) : Visual Studio 2022 only
+* Version v0.1 (20190627a) : Visual Studio 2017 and 2019 only
 
 ### Command Line Options
 
@@ -16,12 +17,11 @@ This tool can handle both C and C++ convention symbols.
 ```
 
 ## Technical details
-dummy-dll-generator identifies the following information after importing the existing DLL file.
+The Dummy DLL Generator identifies the following information after importing a DLL file:
 * Current system bit and the latest version information of MSVC instance
-* Which machine bit is used (e.g, x86 or x64) by taking the file header
-* Both C++ mangled functions and symbols, and C symbols exported in the DLL
+* Machine bit from the file header
+* C/C++ symbols from the file export, including C++ mangled functions
 
-After analyzing the DLL, the dummy-dll-generator produces the out.dll in the working directory by using the MSBuild.
-No entry point is specified for the compilation.
+After analyzing the DLL file, the Dummy DLL Generator produces out.dll in the working directory, using the MSBuild. The output library provides no entry point.
 
 ![Dummy DLL Generator Screenshot 1](https://raw.githubusercontent.com/ykhwong/dummy-dll-generator/master/resources/dummyDLL_sshot.png)
