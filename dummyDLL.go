@@ -202,7 +202,7 @@ var xmlData = `<?xml version="1.0" encoding="utf-8"?>
 </Project>
 `
 
-const verInfo string = "v0.1 (20190627a)"
+const verInfo string = "v0.2 (20220608a)"
 const defineData string = `
 #define CFUNC(func, ...) __declspec(dllexport) void func(__VA_ARGS__) { return; }
 #define CPPFUNC(...) __declspec(dllexport) __VA_ARGS__
@@ -273,6 +273,9 @@ func main() {
 	var realPF = ""
 	var cmd = ""
 	var finalVer = ""
+	var finalMscVer = ""
+	var finalPlatformVer = ""
+	var finalPlatformToolsetDir = ""
 	var newStr = ""
 	var homeDir = ""
 	var isSystemX86 = false
@@ -305,11 +308,13 @@ func main() {
 		exitWithMsg("Error: ProgramFiles environment is not set", 1)
 	}
 
+	// Look for vswhere
 	cmd = realPF + "\\Microsoft Visual Studio\\Installer\\vswhere.exe"
 	if _, err := os.Stat(cmd); os.IsNotExist(err) {
 		exitWithMsg("Error: Visual Studio 15.2 (26418.1 Preview) or higher must be installed", 1)
 	}
 
+	// Look for the latest stable version of MSVC
 	cmdLine := exec.Command(cmd, "-latest", "-property", "installationPath")
 	cmdOut, _ := cmdLine.StdoutPipe()
 	err = cmdLine.Start()
@@ -323,6 +328,7 @@ func main() {
 
 	fileInfo, err := ioutil.ReadDir(newStr)
 
+	// Look for the latest prerelease version of MSVC
 	if err != nil {
 		cmdLine = exec.Command(cmd, "-prerelease", "-property", "installationPath")
 		cmdOut, _ = cmdLine.StdoutPipe()
@@ -346,6 +352,8 @@ func main() {
 			finalVer = file.Name()
 		}
 	}
+
+	// Run dumpbin to get the EXPORTS and HEADERS
 	newStr = newStr + "\\" + finalVer + "\\bin"
 	if isSystemX86 {
 		newStr += "\\Hostx86"
@@ -360,6 +368,19 @@ func main() {
 	if err != nil {
 		exitWithMsg("Error: Could not run "+cmd, 1)
 	}
+
+	// Look for the latest MSVC version
+	fileInfo, err = ioutil.ReadDir(origInstallPath + "\\MSBuild\\Microsoft\\VC")
+	if err != nil {
+		exitWithMsg("Error: Could not read directory: "+origInstallPath+"\\MSBuild\\Microsoft\\VC", 1)
+	}
+	for _, fileInfo := range fileInfo {
+		if fileInfo.IsDir() {
+			finalMscVer = fileInfo.Name()
+		}
+	}
+
+	// Scan the output of dumpbin
 	cmdBytes, _ = ioutil.ReadAll(cmdOut)
 
 	scanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(string(cmdBytes))))
@@ -399,7 +420,6 @@ func main() {
 				if matched {
 					// C++ symbols
 					var newCmdByte3 = ""
-					//var newCmdByte4 string = "";
 					cmd = newStr + `\x86\undname.exe`
 					cmdLine := exec.Command(cmd, newLn2)
 					cmdOut, _ := cmdLine.StdoutPipe()
@@ -461,6 +481,23 @@ func main() {
 		outData += "typedef struct " + sstr + " {} " + sstr + ";\n"
 	}
 
+	// Get the latest version of PlatformToolSets
+	if isDllX86 {
+		finalPlatformToolsetDir = origInstallPath + "\\MSBuild\\Microsoft\\VC\\" + finalMscVer + "\\Platforms\\Win32\\PlatformToolsets"
+	} else {
+		finalPlatformToolsetDir = origInstallPath + "\\MSBuild\\Microsoft\\VC\\" + finalMscVer + "\\Platforms\\x64\\PlatformToolsets"
+	}
+	fileInfo, err = ioutil.ReadDir(finalPlatformToolsetDir)
+	if err != nil {
+		exitWithMsg("Error: Could not read directory: "+finalPlatformToolsetDir, 1)
+	}
+	for _, fileInfo := range fileInfo {
+		if fileInfo.IsDir() {
+			finalPlatformVer = fileInfo.Name()
+		}
+	}
+
+	// Display the number of symbols
 	fmt.Println("Input DLL: " + os.Args[1])
 	fmt.Println("Output DLL: out.dll")
 	fmt.Printf("No. of symbols: C (" + strconv.FormatInt(int64(len(cArray)), 10) + "),")
@@ -472,14 +509,14 @@ func main() {
 	}
 	fmt.Println("\nBuilding...")
 
-	// cArray
+	// Create cArray
 	outData += `extern "C" {` + "\n"
 	for _, sstr := range cArray {
 		outData += "\tCFUNC(" + sstr + ", void)\n"
 	}
 	outData += `}` + "\n\n"
 
-	// cppArray
+	// Create cppArray
 	for _, sstr := range cppArray {
 		re := regexp.MustCompile(`^(\S+ \*|\S+)\s.*`)
 		var dataType = re.ReplaceAllString(sstr, "$1")
@@ -506,7 +543,10 @@ func main() {
 	} else {
 		platform += "x64"
 	}
+
+	// Run MSBuild to create a dummy dll
 	cmdLine = exec.Command(cmd, tmpDir+"\\out.xml",
+		"/p:PlatformToolset="+finalPlatformVer,
 		"/property:Configuration=Release;"+platform+";OutDir="+homeDir+"\\",
 		"/clp:NoSummary;NoItemAndPropertyList;ErrorsOnly", "/verbosity:quiet", "/nologo")
 	cmdOut, _ = cmdLine.StdoutPipe()
